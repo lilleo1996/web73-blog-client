@@ -1,29 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
+import { useQuery } from "react-query";
 
 import PostCreation from "../../components/PostCreation";
 import PostItem from "../../components/PostItem";
+import Pagination from "../../components/Pagination";
+import { useAuth } from "../../contexts/AuthContext";
 
 function Home() {
-  const [isCreating, setIsCreating] = useState(true);
-  const [posts, setPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const { user } = useAuth();
+  console.log(user);
+  const packageSize = 5;
+  const { data, isLoading, error } = useQuery(["posts", currentPage], () =>
+    axios
+      .get(
+        `http://localhost:3001/posts?page=${currentPage}&pageSize=${packageSize}`
+      )
+      .then((response) => response.data)
+  );
 
-  useEffect(() => {
-    const getPosts = () => {
-      axios
-        .get("http://localhost:3001/posts")
-        .then((res) => {
-          setPosts(res.data.data);
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          console.log(error);
-          setIsLoading(false);
-        });
-    };
-    getPosts();
-  }, []);
+  if (isLoading) {
+    return <p>Loading...</p>;
+  }
+
+  if (error) {
+    return <p>Error fetching posts: {error.message}</p>;
+  }
 
   return (
     <div className="home">
@@ -35,18 +39,20 @@ function Home() {
         </button>
         {isCreating && <PostCreation />}
       </div>
-      {isLoading ? (
-        <h4>Loading ...</h4>
-      ) : (
-        <div className="posts-container">
-          <h4>This is a posts</h4>
-          <ul>
-            {posts.map((post) => (
-              <PostItem key={post._id} post={post} />
-            ))}
-          </ul>
-        </div>
-      )}
+      <div className="posts-container">
+        <h4>This is a posts</h4>
+        <ul>
+          {data.data.map((post) => (
+            <PostItem key={post._id} post={post} />
+          ))}
+        </ul>
+      </div>
+      <Pagination
+        page={currentPage}
+        pageSize={packageSize}
+        totalPages={data.totalPages}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }
